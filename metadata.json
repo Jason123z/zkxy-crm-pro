@@ -1,0 +1,8 @@
+{
+  "name": "ZKXY CRM Pro",
+  "description": "A comprehensive mobile-first CRM for sales professionals to manage customers, tasks, and reports.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
