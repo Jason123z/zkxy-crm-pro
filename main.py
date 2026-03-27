@@ -10,7 +10,7 @@ load_dotenv()
 from api.endpoints import customers, check_ins, visit_plans, reports
 from core.config import settings
 
-app = FastAPI(title=settings.PROJECT_NAME)
+app = FastAPI(title=settings.PROJECT_NAME, openapi_url=None, docs_url=None, redoc_url=None)
 
 # Allow CORS for frontend
 app.add_middleware(

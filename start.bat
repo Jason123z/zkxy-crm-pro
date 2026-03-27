@@ -11,13 +11,14 @@ echo.
 cd /d "%~dp0"
 
 echo [1/2] 启动后端服务 (FastAPI, 端口 8000)...
-start "CRM-Backend" cmd /k "cd /d %~dp0 && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+set PYTHONPATH=%~dp0venv_fix
+start "CRM-Backend" cmd /k "cd /d %~dp0 && set PYTHONPATH=%~dp0venv_fix && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
 :: 等待后端启动
 timeout /t 3 /nobreak >nul
 
 echo [2/2] 启动前端服务 (Vite, 端口 3000)...
-start "CRM-Frontend" cmd /k "cd /d %~dp0 && npm run dev"
+start "CRM-Frontend" cmd /k "cd /d %~dp0 && npm.cmd run dev"
 
 echo.
 echo ========================================

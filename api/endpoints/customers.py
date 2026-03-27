@@ -1,5 +1,6 @@
+from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Header
-from typing import List
+from typing import List, Optional, Any
 from db.client import db_client, get_db
 from services.customer_service import CustomerService
 from schemas.customer import (
@@ -62,8 +63,8 @@ def delete_project(customer_id: str, project_id: str, user_id: str = Depends(get
     return {"message": "Success"}
 
 # --- Contacts ---
-@router.get("/{customer_id}/contacts", response_model=List[ContactResponse], response_model_by_alias=True)
-def read_contacts(customer_id: str, project_id: Optional[str] = None, user_id: str = Depends(get_current_user_id), service: CustomerService = Depends(get_service)):
+@router.get("/{customer_id}/contacts", response_model_by_alias=True)
+def read_contacts(customer_id: str, project_id: Any = None, user_id: str = Depends(get_current_user_id), service: CustomerService = Depends(get_service)):
     return service.get_contacts_by_customer(customer_id, user_id, project_id)
 
 @router.post("/{customer_id}/contacts", response_model=ContactResponse, response_model_by_alias=True)
@@ -82,7 +83,7 @@ def delete_contact(customer_id: str, contact_id: str, user_id: str = Depends(get
 
 # --- Visits ---
 @router.get("/{customer_id}/visits", response_model=List[VisitRecordResponse], response_model_by_alias=True)
-def read_visits(customer_id: str, project_id: Optional[str] = None, user_id: str = Depends(get_current_user_id), service: CustomerService = Depends(get_service)):
+def read_visits(customer_id: str, project_id: Any = None, user_id: str = Depends(get_current_user_id), service: CustomerService = Depends(get_service)):
     return service.get_visits_by_customer(customer_id, user_id, project_id)
 
 @router.post("/{customer_id}/visits", response_model=VisitRecordResponse, response_model_by_alias=True)
@@ -101,7 +102,7 @@ def delete_visit(customer_id: str, visit_id: str, user_id: str = Depends(get_cur
 
 # --- Tasks ---
 @router.get("/{customer_id}/tasks", response_model=List[TaskResponse], response_model_by_alias=True)
-def read_tasks(customer_id: str, project_id: Optional[str] = None, user_id: str = Depends(get_current_user_id), service: CustomerService = Depends(get_service)):
+def read_tasks(customer_id: str, project_id: Any = None, user_id: str = Depends(get_current_user_id), service: CustomerService = Depends(get_service)):
     return service.get_tasks_by_customer(customer_id, user_id, project_id)
 
 @router.post("/{customer_id}/tasks", response_model=TaskResponse, response_model_by_alias=True)

@@ -12,6 +12,8 @@ export interface Customer {
   budgetAmount?: number;
   product?: string;
   description?: string;
+  estimatedPurchaseTime?: string;
+  estimatedPurchaseAmount?: number;
   concerns?: string;
   solution?: string;
   competitors?: string;
@@ -29,6 +31,8 @@ export interface Project {
   budgetLevel?: string;
   budgetAmount?: number;
   description?: string;
+  estimatedPurchaseTime?: string;
+  estimatedPurchaseAmount?: number;
   concerns?: string;
   solution?: string;
   competitors?: string;

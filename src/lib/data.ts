@@ -86,7 +86,7 @@ export const updateCustomer = async (id: string, customerData: Partial<Customer>
   // Only include fields that match the database schema
   const allowedKeys = [
     'name', 'level', 'industry', 'size', 'address', 'status', 'source',
-    'budgetLevel', 'budgetAmount', 'product', 'description', 
+    'budgetLevel', 'budgetAmount', 'estimatedPurchaseTime', 'estimatedPurchaseAmount', 'product', 'description', 
     'concerns', 'solution', 'competitors', 'lastFollowUp', 'statusUpdatedAt'
   ];
   

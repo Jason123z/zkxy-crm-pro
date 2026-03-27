@@ -32,6 +32,8 @@ export default function AddCustomer({ onBack, onSuccess }: AddCustomerProps) {
     size: '100-500人',
     budgetLevel: '',
     budgetAmount: '',
+    estimatedPurchaseTime: '',
+    estimatedPurchaseAmount: '',
     wechat: '',
     source: ''
   });
@@ -78,6 +80,10 @@ export default function AddCustomer({ onBack, onSuccess }: AddCustomerProps) {
       budgetLevel: formData.budgetLevel,
       budgetAmount: formData.budgetAmount && !isNaN(parseFloat(formData.budgetAmount)) 
         ? parseFloat(formData.budgetAmount) 
+        : undefined,
+      estimatedPurchaseTime: formData.estimatedPurchaseTime,
+      estimatedPurchaseAmount: formData.estimatedPurchaseAmount && !isNaN(parseFloat(formData.estimatedPurchaseAmount))
+        ? parseFloat(formData.estimatedPurchaseAmount)
         : undefined
     };
 
@@ -245,6 +251,31 @@ export default function AddCustomer({ onBack, onSuccess }: AddCustomerProps) {
               type="text" 
               value={formData.wechat}
               onChange={(e) => setFormData({...formData, wechat: e.target.value})}
+            />
+          </div>
+        </div>
+
+        {/* Commercial Info */}
+        <div className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-bold text-slate-700">预计采购时间</label>
+            <input 
+              className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
+              placeholder="例如：2024年Q4" 
+              type="text" 
+              value={formData.estimatedPurchaseTime}
+              onChange={(e) => setFormData({...formData, estimatedPurchaseTime: e.target.value})}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-bold text-slate-700">预计采购金额 (元)</label>
+            <input 
+              className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all" 
+              placeholder="请输入预计采购金额" 
+              type="number" 
+              value={formData.estimatedPurchaseAmount}
+              onChange={(e) => setFormData({...formData, estimatedPurchaseAmount: e.target.value})}
             />
           </div>
         </div>

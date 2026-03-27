@@ -10,10 +10,11 @@ import {
   History,
   CheckCircle2,
   Clock,
-  Target
+  Target,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { Customer, Project, Contact, VisitRecord } from '../../types';
+import { Customer, Project, Contact, VisitRecord, Task } from '../../types';
 import { toCamelCase } from '../../lib/data'; // We can reuse the utility
 
 interface CustomerDetailProps {
@@ -25,6 +26,7 @@ export default function CustomerDetail({ customerId, onBack }: CustomerDetailPro
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [visits, setVisits] = useState<VisitRecord[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [ownerName, setOwnerName] = useState<string>('加载中...');
 
@@ -53,13 +55,15 @@ export default function CustomerDetail({ customerId, onBack }: CustomerDetailPro
         }
 
         // Fetch related data
-        const [contRes, visitRes] = await Promise.all([
+        const [contRes, visitRes, taskRes] = await Promise.all([
           supabase.from('contacts').select('*').eq('customer_id', customerId),
-          supabase.from('visit_records').select('*').eq('customer_id', customerId).order('date', { ascending: false })
+          supabase.from('visit_records').select('*').eq('customer_id', customerId).order('date', { ascending: false }),
+          supabase.from('tasks').select('*').eq('customer_id', customerId).order('created_at', { ascending: false })
         ]);
 
         setContacts((contRes.data || []).map(c => toCamelCase<Contact>(c)));
         setVisits((visitRes.data || []).map(v => toCamelCase<VisitRecord>(v)));
+        setTasks((taskRes.data || []).map(t => toCamelCase<Task>(t)));
 
       } catch (error) {
         console.error("Failed to fetch customer details:", error);
@@ -172,6 +176,14 @@ export default function CustomerDetail({ customerId, onBack }: CustomerDetailPro
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">预算金额</p>
                 <p className="text-slate-700 font-medium">{customer.budgetAmount ? `¥${customer.budgetAmount.toLocaleString()}` : '未确定'}</p>
               </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">预计采购时间</p>
+                <p className="text-slate-700 font-medium">{customer.estimatedPurchaseTime || '未填写'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">预计采购金额</p>
+                <p className="text-slate-700 font-medium">{customer.estimatedPurchaseAmount ? `¥${customer.estimatedPurchaseAmount.toLocaleString()}` : '未确定'}</p>
+              </div>
               <div className="md:col-span-2 space-y-1 border-t border-slate-100 pt-3">
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">需求/痛点</p>
                 <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">{customer.description || '未记录'}</p>
@@ -190,6 +202,39 @@ export default function CustomerDetail({ customerId, onBack }: CustomerDetailPro
               </div>
             </div>
           </div>
+ 
+          {/* Tasks & Next Follow-up Plan */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <Calendar size={18} className="text-blue-600" />
+                待办&下次跟进计划
+              </h3>
+            </div>
+            <div className="p-6 space-y-3">
+              {tasks.length > 0 ? tasks.map(task => (
+                <div key={task.id} className="flex items-start gap-4 p-3 bg-slate-50 rounded-lg group transition-all hover:bg-slate-100">
+                  <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center ${task.status === 'completed' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                    {task.status === 'completed' && <CheckCircle2 size={12} className="text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                      {task.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock size={12} className="text-slate-400" />
+                      <span className={`text-[10px] font-bold ${task.deadline.includes('今天') ? 'text-red-500' : 'text-slate-500'}`}>
+                        {task.deadline}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <p className="text-center text-slate-400 text-sm py-4">暂无待办任务</p>
+              )}
+            </div>
+          </div>
+
 
           </div>
         </div>

@@ -540,6 +540,32 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-700">预计采购时间</label>
+                  <input 
+                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
+                    placeholder="例如：2024年Q4、12月下旬..." 
+                    type="text" 
+                    value={customer.estimatedPurchaseTime || ''}
+                    onChange={(e) => setCustomer({ ...customer, estimatedPurchaseTime: e.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-700">预计采购金额 (元)</label>
+                  <input 
+                    type="number"
+                    value={customer.estimatedPurchaseAmount || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomer({ 
+                        ...customer, 
+                        estimatedPurchaseAmount: val === '' ? undefined : parseFloat(val) 
+                      });
+                    }}
+                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none"
+                    placeholder="请输入预计采购金额"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-semibold text-slate-700">竞品信息</label>
                   <input 
                     className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
@@ -583,47 +609,7 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
             </div>
           </section>
 
-        {/* Visit Records */}
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <History className="text-blue-600" size={20} />
-              拜访记录
-            </h3>
-            <button 
-              onClick={() => {
-                setEditingVisit(null);
-                setIsVisitModalOpen(true);
-              }}
-              className="text-blue-600 text-sm font-semibold flex items-center gap-1"
-            >
-              <PlusCircle size={16} />
-              新增记录
-            </button>
-          </div>
-          <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-            {visits.map((visit) => (
-              <div key={visit.id} className="relative pl-8 group">
-                <div className="absolute left-0 top-1.5 size-6 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center z-10">
-                  <div className="size-2 rounded-full bg-blue-600"></div>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => {
-                  setEditingVisit(visit);
-                  setIsVisitModalOpen(true);
-                }}>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-sm">{visit.type} - {visit.title}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">{visit.date}</span>
-                      <Edit2 size={14} className="text-slate-400 group-hover:text-blue-600" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-600">{visit.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+
 
         {/* Contacts */}
         <section className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
@@ -713,7 +699,7 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold flex items-center gap-2">
               <Calendar className="text-blue-600" size={20} />
-              后续待办
+              待办&下次跟进计划
             </h3>
             <button 
               onClick={() => {
@@ -756,6 +742,48 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                   setEditingTask(task);
                   setIsTaskModalOpen(true);
                 }} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Visit Records */}
+        <section className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <History className="text-blue-600" size={20} />
+              拜访记录
+            </h3>
+            <button 
+              onClick={() => {
+                setEditingVisit(null);
+                setIsVisitModalOpen(true);
+              }}
+              className="text-blue-600 text-sm font-semibold flex items-center gap-1"
+            >
+              <PlusCircle size={16} />
+              新增记录
+            </button>
+          </div>
+          <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+            {visits.map((visit) => (
+              <div key={visit.id} className="relative pl-8 group">
+                <div className="absolute left-0 top-1.5 size-6 rounded-full bg-blue-50 border-4 border-white flex items-center justify-center z-10">
+                  <div className="size-2 rounded-full bg-blue-600"></div>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => {
+                  setEditingVisit(visit);
+                  setIsVisitModalOpen(true);
+                }}>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-bold text-sm">{visit.type} - {visit.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">{visit.date}</span>
+                      <Edit2 size={14} className="text-slate-400 group-hover:text-blue-600" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-600">{visit.content}</p>
+                </div>
               </div>
             ))}
           </div>

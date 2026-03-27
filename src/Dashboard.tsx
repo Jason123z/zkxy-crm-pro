@@ -146,12 +146,20 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 pb-24">
       {/* Header Section */}
-      <div className="flex items-center bg-white p-4 pb-2 justify-between">
+      <div className="flex items-center bg-white p-4 pb-2 justify-between border-b border-slate-100">
         <div className="flex items-center gap-2">
           <div className="bg-blue-50 flex items-center justify-center rounded-full size-10 text-blue-600">
             <User size={24} />
           </div>
-          <h2 className="text-slate-900 text-lg font-bold">{getGreeting()}，{user.name}</h2>
+          <div>
+            <h2 className="text-slate-900 text-lg font-bold">{getGreeting()}，{user.name}</h2>
+            <a 
+              href="/admin.html" 
+              className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5"
+            >
+              进入管理后台 <ChevronRight size={10} />
+            </a>
+          </div>
         </div>
         <div className="relative">
           <button 
