@@ -105,7 +105,7 @@ export default function VisitPlan({ onBack, onNavigate, onShowToast }: VisitPlan
   const filteredPlans = plans.filter(p => p.date === selectedDate);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 pb-24 max-w-md mx-auto shadow-xl">
+    <div className="flex flex-col min-h-screen bg-slate-50 pb-24 md:pb-8 max-w-2xl mx-auto md:my-12 md:min-h-0 md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-4">
         <div className="flex items-center justify-between mb-4">

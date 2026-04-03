@@ -123,3 +123,12 @@ export interface UserProfile {
   email?: string;
   department?: string;
 }
+
+export interface SalesAccount {
+  id: string;
+  username: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}

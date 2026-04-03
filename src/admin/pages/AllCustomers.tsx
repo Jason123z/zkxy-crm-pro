@@ -6,6 +6,7 @@ import {
   User, 
   Building2, 
   MapPin,
+  History,
   Tag,
   Briefcase
 } from 'lucide-react';
@@ -47,9 +48,11 @@ export default function AllCustomers({ initialFilter = 'all', onSelectCustomer }
     fetchData();
   }, []);
 
-  const filteredCustomers = customers.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.industry.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredCustomers = (customers || []).filter(c => {
+    const name = c.name || '';
+    const industry = c.industry || '';
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          industry.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPersonnel = selectedPersonnel === 'all' || (c as any).userId === selectedPersonnel;
     const matchesLevel = selectedLevel === 'all' || c.level === selectedLevel;
     const matchesStage = selectedStage === 'all' || c.status === selectedStage;
@@ -87,48 +90,50 @@ export default function AllCustomers({ initialFilter = 'all', onSelectCustomer }
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 text-sm text-slate-600 font-medium whitespace-nowrap">
           <Filter size={16} className="text-slate-400" />
-          <span>筛选条件:</span>
+          <span>筛选:</span>
         </div>
         
-        <select 
-          value={selectedPersonnel}
-          onChange={e => setSelectedPersonnel(e.target.value)}
-          className="text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">所有销售人员</option>
-          {profiles.map(p => (
-            <option key={(p as any).id} value={(p as any).id}>{p.name} ({p.department || '销售部'})</option>
-          ))}
-        </select>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <select 
+            value={selectedPersonnel}
+            onChange={e => setSelectedPersonnel(e.target.value)}
+            className="flex-1 sm:flex-none text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">所有人员</option>
+            {profiles.map(p => (
+              <option key={(p as any).id} value={(p as any).id}>{p.name}</option>
+            ))}
+          </select>
+  
+          <select 
+            value={selectedLevel}
+            onChange={e => setSelectedLevel(e.target.value)}
+            className="flex-1 sm:flex-none text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">等级</option>
+            <option value="A">A类</option>
+            <option value="B">B类</option>
+            <option value="C">C类</option>
+            <option value="D">D类</option>
+          </select>
+  
+          <select 
+            value={selectedStage}
+            onChange={e => setSelectedStage(e.target.value)}
+            className="flex-1 sm:flex-none text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">阶段</option>
+            {salesStages.map(s => (
+              <option key={s.id} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
 
-        <select 
-          value={selectedLevel}
-          onChange={e => setSelectedLevel(e.target.value)}
-          className="text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">客户等级 (全部)</option>
-          <option value="A">A类客户</option>
-          <option value="B">B类客户</option>
-          <option value="C">C类客户</option>
-          <option value="D">D类客户</option>
-        </select>
-
-        <select 
-          value={selectedStage}
-          onChange={e => setSelectedStage(e.target.value)}
-          className="text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">销售阶段 (全部)</option>
-          {salesStages.map(s => (
-            <option key={s.id} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-
-        <div className="flex-1 text-right text-xs text-slate-400 pr-2">
-          共找到 {filteredCustomers.length} 个客户
+        <div className="hidden sm:block flex-1 text-right text-xs text-slate-400 pr-2">
+          共 {filteredCustomers.length} 个客户
         </div>
       </div>
 
@@ -147,7 +152,7 @@ export default function AllCustomers({ initialFilter = 'all', onSelectCustomer }
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                    {customer.name[0]}
+                    {(customer.name || '?')[0]}
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
@@ -157,19 +162,22 @@ export default function AllCustomers({ initialFilter = 'all', onSelectCustomer }
                       <Briefcase size={10} />
                       {customer.industry}
                     </span>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full font-bold border border-emerald-100">
+                    <div className="mt-1 flex flex-col gap-1">
+                      <span className="w-fit text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full font-bold border border-emerald-100">
                         {customer.status || '线索'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium ml-1">
+                        创建于: {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '-'}
                       </span>
                     </div>
                   </div>
                 </div>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase
+                <span className={`px-2.5 py-1 rounded text-xs font-bold tracking-wider uppercase shadow-sm
                   ${customer.level === 'A' ? 'bg-red-50 text-red-600 border border-red-100' : 
                     customer.level === 'B' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
                     customer.level === 'C' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                     'bg-slate-50 text-slate-600 border border-slate-100'}`}>
-                  {customer.level}级客户
+                  {customer.level}级
                 </span>
               </div>
 
@@ -179,15 +187,14 @@ export default function AllCustomers({ initialFilter = 'all', onSelectCustomer }
                   <span className="font-medium text-slate-700">所属负责人:</span>
                   <span>{(customer as any).ownerName || '测试人员'}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Building2 size={14} className="text-slate-400" />
-                  <span className="font-medium text-slate-700">公司规模:</span>
-                  <span>{customer.size || '未知'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={14} className="text-slate-400" />
-                  <span className="font-medium text-slate-700">地 址:</span>
-                  <span className="truncate">{customer.address || '未填'}</span>
+                <div className="flex items-start gap-2 pt-1 border-t border-slate-50">
+                  <History size={14} className="text-slate-400 mt-1 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="font-medium text-slate-700">最近跟进记录:</span>
+                    <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                        {customer.lastFollowUp || '暂无跟进记录'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

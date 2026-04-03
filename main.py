@@ -7,10 +7,10 @@ import sys
 
 load_dotenv()
 
-from api.endpoints import customers, check_ins, visit_plans, reports
+from api.endpoints import auth, customers, check_ins, visit_plans, reports, admin, system
 from core.config import settings
 
-app = FastAPI(title=settings.PROJECT_NAME, openapi_url=None, docs_url=None, redoc_url=None)
+app = FastAPI(title=settings.PROJECT_NAME, openapi_url="/openapi.json", docs_url="/docs", redoc_url="/redoc")
 
 # Allow CORS for frontend
 app.add_middleware(
@@ -30,12 +30,19 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"message": "Internal Server Error", "detail": str(exc)},
     )
 
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(customers.router, prefix=f"{settings.API_V1_STR}/customers", tags=["customers"])
 app.include_router(check_ins.router, prefix=f"{settings.API_V1_STR}/check_ins", tags=["check_ins"])
 app.include_router(visit_plans.router, prefix=f"{settings.API_V1_STR}/visit_plans", tags=["visit_plans"])
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
+app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
+app.include_router(system.router, prefix=f"{settings.API_V1_STR}/system", tags=["system"])
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to ZKXY CRM PRO API"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 

@@ -18,7 +18,7 @@ const NAV_ITEMS = [
 
 export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-100 bg-white/90 backdrop-blur-md px-4 pb-6 pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-100 bg-white/90 backdrop-blur-md px-4 pb-6 pt-2 md:hidden">
       <div className="flex gap-2 max-w-md mx-auto">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;

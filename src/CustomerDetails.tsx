@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import Modal from './components/Modal';
-import { Customer, Project, VisitRecord, Contact, Task, CustomerLevel } from './types';
+import { Customer, Project, VisitRecord, Contact, Task, CustomerLevel, UserProfile } from './types';
 
 import { 
   getCustomerById, 
@@ -37,7 +37,8 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  getSystemSettings
+  getSystemSettings,
+  getUserProfile
 } from './lib/data';
 
 interface CustomerDetailsProps {
@@ -52,14 +53,16 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
   
   // Customer State
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   // Load customer and options
   React.useEffect(() => {
     const loadAllInitialData = async () => {
       if (!customerId) return onBack();
       try {
-        const [customerData, indData, visitData, prodData, stageData, sourceData] = await Promise.all([
+        const [customerData, userProfile, indData, visitData, prodData, stageData, sourceData] = await Promise.all([
           getCustomerById(customerId),
+          getUserProfile(),
           getSystemSettings('industry'),
           getSystemSettings('visit_type'),
           getSystemSettings('product'),
@@ -82,6 +85,7 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
 
         // Set customer
         setCustomer(customerData);
+        setCurrentUser(userProfile);
         
         // Map status to stage ID using the newly loaded stages
         if (customerData.status) {
@@ -195,31 +199,11 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
       size: formData.get('size') as string,
       address: formData.get('address') as string,
       source: formData.get('source') as string,
-      contactPerson: formData.get('contactPerson') as string,
-      contactRole: formData.get('contactRole') as string,
-      // Budget fields removed from here as they should be maintained in the Intention/Needs section
     };
-    
-    const contactPhone = formData.get('phone') as string;
-    const contactWechat = formData.get('wechat') as string;
     
     try {
         await updateCustomer(customerId!, updatedCustomer);
         setCustomer(updatedCustomer);
-
-        // Update primary contact as well
-        // We look for a contact that matches the primary contact name or is marked isKey
-        const primaryContact = contacts.find(c => c.name === customer.contactPerson) || contacts[0];
-        if (primaryContact) {
-            await updateContact(customer.id, primaryContact.id, {
-                name: updatedCustomer.contactPerson,
-                role: updatedCustomer.contactRole,
-                phone: contactPhone,
-                email: contactWechat
-            });
-            // Refresh contacts list to reflect changes
-            setContacts(await getContactsByCustomer(customer.id));
-        }
 
         setIsCustomerModalOpen(false);
         onShowToast('客户资料已更新');
@@ -341,6 +325,15 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
     }
   };
 
+  // Permission check
+  const isOwner = React.useMemo(() => {
+    // Both need to be present
+    if (!customer?.userId || !currentUser?.id) return false;
+    
+    // Normalize to handle potential case/trim issues
+    return customer.userId.toLowerCase() === currentUser.id.toLowerCase();
+  }, [customer?.userId, currentUser?.id]);
+
   if (!customer) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -350,13 +343,13 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 pb-20">
+    <div className="flex flex-col min-h-screen bg-slate-50 pb-20 md:pb-8">
       {/* Top Navigation */}
-      <div className="flex items-center bg-white p-4 border-b border-slate-200 justify-between sticky top-0 z-10">
+      <div className="flex items-center bg-white p-4 md:px-8 border-b border-slate-200 justify-between sticky top-0 z-10">
         <button onClick={onBack} className="text-slate-900 flex size-10 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-slate-900 text-lg font-bold flex-1 px-4">客户详情</h2>
+        <h2 className="text-slate-900 text-lg font-bold flex-1 px-4 max-w-7xl mx-auto">客户详情</h2>
         <div className="flex gap-2">
           <button className="flex size-10 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
             <Share2 size={20} />
@@ -368,16 +361,18 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
       </div>
 
       {/* Header Profile Section */}
-      <div className="bg-white p-6 border-b border-slate-200">
+      <div className="bg-white p-6 md:py-10 border-b border-slate-200 shadow-sm relative z-0">
+        <div className="max-w-7xl mx-auto w-full">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="bg-blue-50 rounded-full h-20 w-20 flex items-center justify-center text-blue-600">
               <Building2 size={40} />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">{customer.name}</h1>
-                <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-0.5 rounded">{customer.level}级</span>
+                <span className="bg-blue-600 text-white text-sm font-black px-3 py-1 rounded-lg shadow-sm">{customer.level}级</span>
+                <span className="text-slate-400 text-xs font-medium ml-1">创建日期: {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '未知'}</span>
               </div>
               <p className="text-slate-500 mt-1">行业：{customer.industry || '未填写'} · 规模：{customer.size || '未填写'} · 来源：{customer.source || '未维护'}</p>
               {customer.budgetAmount != null && (
@@ -388,18 +383,22 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
             </div>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={handleSaveRequirements}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
-            >
-              保存并返回
-            </button>
-            <button 
-              onClick={() => setIsCustomerModalOpen(true)}
-              className="flex-1 md:flex-none px-6 py-2.5 border border-slate-200 font-semibold rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              编辑资料
-            </button>
+            {isOwner && (
+              <>
+                <button 
+                  onClick={handleSaveRequirements}
+                  className="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  保存资料
+                </button>
+                <button 
+                  onClick={() => setIsCustomerModalOpen(true)}
+                  className="flex-1 md:flex-none px-6 py-2.5 border border-slate-200 font-semibold rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  修改公司基本信息
+                </button>
+              </>
+            )}
             <button 
               onClick={() => {
                 setEditingVisit(null);
@@ -412,9 +411,13 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Main Content */}
-      <div className="p-4 space-y-6 max-w-4xl mx-auto w-full">
+      {/* Main Content Grid */}
+      <div className="p-4 md:p-8 md:pt-10 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Column: Core Info & Requirements */}
+        <div className="lg:col-span-7 space-y-6">
 
 
         {/* Sales Funnel Stage */}
@@ -444,7 +447,7 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
               <div 
                 key={s.id} 
                 className="z-10 flex flex-col items-center gap-2 cursor-pointer"
-                onClick={() => handleStageChange(s.id)}
+                onClick={() => isOwner && handleStageChange(s.id)}
               >
                 <div className={cn(
                   "size-8 rounded-full flex items-center justify-center text-xs ring-4 ring-white transition-all",
@@ -455,8 +458,8 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                   {s.id < stage ? <Check size={14} /> : <span className="font-bold">{s.id}</span>}
                 </div>
                 <span className={cn(
-                  "text-[10px] font-medium transition-colors",
-                  s.id === stage ? "text-blue-600 font-bold" : "text-slate-500"
+                  "text-xs transition-colors text-center max-w-[64px] leading-tight",
+                  s.id === stage ? "text-blue-600 font-black" : "text-slate-500 font-medium"
                 )}>{s.name}</span>
               </div>
             ))}
@@ -470,12 +473,14 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
               <FileText className="text-blue-600" size={20} />
               意向及需求
             </div>
-              <button 
-                onClick={() => handleSaveRequirements()}
-                className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
-              >
-                保存本项
-              </button>
+              {isOwner && (
+                <button 
+                  onClick={() => handleSaveRequirements()}
+                  className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100"
+                >
+                  保存本项
+                </button>
+              )}
             </h3>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -493,7 +498,8 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                           setCustomer({ ...customer, product: e.target.value });
                         }
                       }}
-                       className={`bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none ${isCustomProduct ? 'w-1/3' : 'w-full'}`}
+                       className={`bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none ${isCustomProduct ? 'w-1/3' : 'w-full'} ${!isOwner ? 'cursor-not-allowed opacity-75' : ''}`}
+                       disabled={!isOwner}
                     >
                       <option value="">请选择产品</option>
                       <option value="项目">项目 (填空)</option>
@@ -505,7 +511,8 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                         placeholder="请输入自定义项目名称"
                         value={customer.product || ''}
                         onChange={(e) => setCustomer({ ...customer, product: e.target.value })}
-                        className="flex-1 bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none w-full"
+                        className="flex-1 bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none w-full disabled:opacity-75 disabled:cursor-not-allowed"
+                        disabled={!isOwner}
                       />
                     )}
                   </div>
@@ -515,7 +522,8 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                   <select 
                      value={customer.budgetLevel || ''}
                      onChange={(e) => setCustomer({ ...customer, budgetLevel: e.target.value })}
-                     className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none"
+                     className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
+                     disabled={!isOwner}
                   >
                     <option value="">请选择预算状态</option>
                     <option value="已获取初步预算清单">已获取初步预算清单</option>
@@ -535,18 +543,20 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                         budgetAmount: val === '' ? undefined : parseFloat(val) 
                       });
                     }}
-                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none"
+                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
                     placeholder="请输入预算金额"
+                    disabled={!isOwner}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-semibold text-slate-700">预计采购时间</label>
                   <input 
-                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
+                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed" 
                     placeholder="例如：2024年Q4、12月下旬..." 
                     type="text" 
                     value={customer.estimatedPurchaseTime || ''}
                     onChange={(e) => setCustomer({ ...customer, estimatedPurchaseTime: e.target.value })}
+                    disabled={!isOwner}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -561,53 +571,62 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                         estimatedPurchaseAmount: val === '' ? undefined : parseFloat(val) 
                       });
                     }}
-                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none"
+                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
                     placeholder="请输入预计采购金额"
+                    disabled={!isOwner}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-semibold text-slate-700">竞品信息</label>
                   <input 
-                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
+                    className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed" 
                     placeholder="输入当前接触的竞品..." 
                     type="text" 
                     value={customer.competitors || ''}
                     onChange={(e) => setCustomer({ ...customer, competitors: e.target.value })}
+                    disabled={!isOwner}
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700">需求描述</label>
                 <textarea 
-                  className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
+                  className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed" 
                   placeholder="请详细描述客户的痛点与核心需求..." 
                   rows={4}
                   value={customer.description || ''}
                   onChange={(e) => setCustomer({ ...customer, description: e.target.value })}
+                  disabled={!isOwner}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700">客户顾虑点</label>
                 <textarea 
-                  className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
-                  placeholder="记录客户对产品的疑虑、预算担忧或对竞品的倾向..." 
+                  className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed" 
+                  placeholder="记录客户对产品的疑虑、预算担忧 or 对竞品的倾向..." 
                   rows={3}
                   value={customer.concerns || ''}
                   onChange={(e) => setCustomer({ ...customer, concerns: e.target.value })}
+                  disabled={!isOwner}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700">解决方案</label>
                 <textarea 
-                  className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none" 
+                  className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm focus:ring-blue-600 focus:border-blue-600 outline-none disabled:opacity-75 disabled:cursor-not-allowed" 
                   placeholder="针对客户需求与顾虑，拟定初步的应对方案或产品组合策略..." 
                   rows={3}
                   value={customer.solution || ''}
                   onChange={(e) => setCustomer({ ...customer, solution: e.target.value })}
+                  disabled={!isOwner}
                 />
               </div>
             </div>
           </section>
+        </div>
+
+        {/* Right Column: Management & Logs */}
+        <div className="lg:col-span-5 space-y-6">
 
 
 
@@ -618,15 +637,17 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
               <Users className="text-blue-600" size={20} />
               联系人 & 决策链
             </h3>
-            <button 
-              onClick={() => {
-                setEditingContact(null);
-                setIsContactModalOpen(true);
-              }}
-              className="text-slate-500 hover:text-blue-600 transition-colors"
-            >
-              <Plus size={20} />
-            </button>
+            {isOwner && (
+              <button 
+                onClick={() => {
+                  setEditingContact(null);
+                  setIsContactModalOpen(true);
+                }}
+                className="text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                <Plus size={20} />
+              </button>
+            )}
           </div>
           <div className="space-y-4">
             {contacts.map((contact) => (
@@ -637,8 +658,10 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                   contact.isKey ? "border-blue-100 bg-blue-50/30" : "border-slate-100 hover:bg-slate-50"
                 )}
                 onClick={() => {
-                  setEditingContact(contact);
-                  setIsContactModalOpen(true);
+                  if (isOwner) {
+                    setEditingContact(contact);
+                    setIsContactModalOpen(true);
+                  }
                 }}
               >
                 <div className="size-10 rounded-full bg-slate-200 overflow-hidden">
@@ -677,20 +700,22 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                       <MessageCircle size={18} />
                     </div>
                   )}
-                  <Edit2 size={16} className="text-slate-300 group-hover:text-blue-600 ml-1" />
+                  {isOwner && <Edit2 size={16} className="text-slate-300 group-hover:text-blue-600 ml-1" />}
                 </div>
               </div>
             ))}
-            <button 
-              onClick={() => {
-                setEditingContact(null);
-                setIsContactModalOpen(true);
-              }}
-              className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 text-sm flex items-center justify-center gap-2 hover:border-blue-600 hover:text-blue-600 transition-all"
-            >
-              <Plus size={16} />
-              添加新联系人
-            </button>
+            {isOwner && (
+              <button 
+                onClick={() => {
+                  setEditingContact(null);
+                  setIsContactModalOpen(true);
+                }}
+                className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 text-sm flex items-center justify-center gap-2 hover:border-blue-600 hover:text-blue-600 transition-all"
+              >
+                <Plus size={16} />
+                添加新联系人
+              </button>
+            )}
           </div>
         </section>
 
@@ -701,29 +726,37 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
               <Calendar className="text-blue-600" size={20} />
               待办&下次跟进计划
             </h3>
-            <button 
-              onClick={() => {
-                setEditingTask(null);
-                setIsTaskModalOpen(true);
-              }}
-              className="text-blue-600 text-sm font-semibold flex items-center gap-1"
-            >
-              <PlusCircle size={16} />
-              添加待办
-            </button>
+            {isOwner && (
+              <button 
+                onClick={() => {
+                  setEditingTask(null);
+                  setIsTaskModalOpen(true);
+                }}
+                className="text-blue-600 text-sm font-semibold flex items-center gap-1"
+              >
+                <PlusCircle size={16} />
+                添加待办
+              </button>
+            )}
           </div>
           <div className="space-y-3">
             {tasks.map((task) => (
               <div key={task.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg group">
                 <input 
-                  className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-600 cursor-pointer" 
+                  className={cn(
+                    "mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-600",
+                    isOwner ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                  )}
                   type="checkbox" 
                   checked={task.status === 'completed'}
-                  onChange={() => toggleTaskStatus(task.id)}
+                  onChange={() => isOwner && toggleTaskStatus(task.id)}
+                  disabled={!isOwner}
                 />
-                <div className="flex-1 cursor-pointer" onClick={() => {
-                  setEditingTask(task);
-                  setIsTaskModalOpen(true);
+                <div className={cn("flex-1", isOwner ? "cursor-pointer" : "cursor-default")} onClick={() => {
+                  if (isOwner) {
+                    setEditingTask(task);
+                    setIsTaskModalOpen(true);
+                  }
                 }}>
                   <p className={cn(
                     "text-sm font-medium",
@@ -776,9 +809,16 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
                   setIsVisitModalOpen(true);
                 }}>
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-sm">{visit.type} - {visit.title}</span>
+                    <div className="min-w-0">
+                      <span className="font-bold text-sm truncate block">{visit.type} - {visit.title}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                         <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1 rounded uppercase">
+                            跟进人: {visit.salespersonName || '系统'}
+                         </span>
+                         <span className="text-[10px] text-slate-400">{visit.date}</span>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">{visit.date}</span>
                       <Edit2 size={14} className="text-slate-400 group-hover:text-blue-600" />
                     </div>
                   </div>
@@ -789,6 +829,7 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
           </div>
         </section>
       </div>
+    </div>
 
       {/* Sticky Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 flex gap-4 md:hidden">
@@ -850,40 +891,18 @@ export default function CustomerDetails({ customerId, onBack, onShowToast }: Cus
             <label className="text-sm font-semibold text-slate-700">规模</label>
             <input name="size" defaultValue={customer.size} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">联系人</label>
-              <input name="contactPerson" defaultValue={customer.contactPerson} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" required />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">职位/部门</label>
-              <input name="contactRole" defaultValue={customer.contactRole} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" />
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">地址</label>
+            <textarea name="address" defaultValue={customer.address} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" rows={2} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">联系电话</label>
-              <input name="phone" type="tel" defaultValue={contacts.find(c => c.name === customer.contactPerson)?.phone || contacts[0]?.phone} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">微信</label>
-              <input name="wechat" type="text" defaultValue={contacts.find(c => c.name === customer.contactPerson)?.email || contacts[0]?.email} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">地址</label>
-              <textarea name="address" defaultValue={customer.address} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm" rows={2} />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">客户来源</label>
-              <select name="source" defaultValue={customer.source} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm">
-                <option value="">请选择来源</option>
-                {customerSources.map(src => (
-                  <option key={src.value} value={src.value}>{src.label}</option>
-                ))}
-              </select>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-700">客户来源</label>
+            <select name="source" defaultValue={customer.source} className="w-full bg-slate-50 border-slate-200 rounded-lg p-2.5 text-sm">
+              <option value="">请选择来源</option>
+              {customerSources.map(src => (
+                <option key={src.value} value={src.value}>{src.label}</option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={() => setIsCustomerModalOpen(false)} className="flex-1 py-2.5 border border-slate-200 rounded-lg font-semibold text-slate-600">取消</button>

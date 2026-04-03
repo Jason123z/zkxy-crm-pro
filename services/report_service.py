@@ -1,47 +1,68 @@
-﻿from supabase import Client
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from typing import List, Optional
-from schemas.customer import ReportCreate, ReportResponse
+import uuid
+from db.models import Report, ClientProgress
+from schemas.customer import ReportCreate
 
 class ReportService:
-    def __init__(self, db: Client):
+    def __init__(self, db: Session):
         self.db = db
 
-    def get_reports(self, user_id: str) -> List[dict]:
-        #   reports
-        response = self.db.table("reports").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
-        reports = response.data
-        
-        #  
-        progress_res = self.db.table("client_progress").select("*").eq("user_id", user_id).execute()
-        progress_data = progress_res.data
+    def _to_dict(self, obj):
+        if not obj:
+            return None
+        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
-        #   report  ?    for r in reports:
-        r["client_progress"] = [p for p in progress_data if p["report_id"] == r["id"]]
+    def get_reports(self, user_id: str) -> List[dict]:
+        # Get reports
+        reports_objs = self.db.query(Report).filter(Report.user_id == user_id).order_by(desc(Report.created_at)).all()
+        reports = [self._to_dict(r) for r in reports_objs]
+        
+        # Get all progress for this user to avoid N+1 if needed, or just filter
+        progress_objs = self.db.query(ClientProgress).filter(ClientProgress.user_id == user_id).all()
+        progress_data = [self._to_dict(p) for p in progress_objs]
+
+        # Nest progress in reports
+        for r in reports:
+            r["client_progress"] = [p for p in progress_data if p["report_id"] == r["id"]]
             
         return reports
 
-    def create_report(self, report: ReportCreate, user_id: str) -> dict:
-        #  ?client_progress
-        report_data = report.model_dump(exclude={"client_progress"})
+    def create_report(self, report_in: ReportCreate, user_id: str) -> dict:
+        # Create report record
+        report_data = report_in.model_dump(exclude={"client_progress"})
         report_data["user_id"] = user_id
-        response = self.db.table("reports").insert(report_data).execute()
-        new_report = response.data[0]
+        if "id" not in report_data or not report_data["id"]:
+            report_data["id"] = str(uuid.uuid4())
+            
+        new_report_obj = Report(**report_data)
+        self.db.add(new_report_obj)
+        self.db.flush()  # Ensure report exists before adding child rows
         
-        #  
+        # Create progress records
         client_progress = []
-        if report.client_progress:
-            for cp in report.client_progress:
+        if report_in.client_progress:
+            for cp in report_in.client_progress:
                 cp_data = cp.model_dump()
-                cp_data["report_id"] = new_report["id"]
+                cp_data["report_id"] = report_data["id"]
                 cp_data["user_id"] = user_id
-                cp_res = self.db.table("client_progress").insert(cp_data).execute()
-                client_progress.append(cp_res.data[0])
+                if "id" not in cp_data or not cp_data["id"]:
+                    cp_data["id"] = str(uuid.uuid4())
                 
-        new_report["client_progress"] = client_progress
-        return new_report
+                new_cp_obj = ClientProgress(**cp_data)
+                self.db.add(new_cp_obj)
+                client_progress.append(cp_data)
+        
+        self.db.commit()
+        self.db.refresh(new_report_obj)
+        
+        res = self._to_dict(new_report_obj)
+        res["client_progress"] = client_progress
+        return res
 
     def delete_report(self, report_id: str, user_id: str) -> None:
-        self.db.table("reports").delete().eq("id", report_id).eq("user_id", user_id).execute()
-
-
-
+        db_report = self.db.query(Report).filter(Report.id == report_id, Report.user_id == user_id).first()
+        if db_report:
+            self.db.delete(db_report)
+            self.db.commit()

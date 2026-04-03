@@ -31,9 +31,9 @@ import {
   checkOverdueVisits,
   getAllTasks,
   getSystemSettings,
+  getFunnelStats,
   DEFAULT_USER
 } from './lib/data';
-import { supabase } from './lib/supabase';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
@@ -64,6 +64,7 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
   const [showNotifications, setShowNotifications] = useState(false);
   const [globalTasks, setGlobalTasks] = useState<any[]>([]);
   const [salesStages, setSalesStages] = useState<any[]>([]);
+  const [funnelStats, setFunnelStats] = useState<any>(null);
   const [loadingTasks, setLoadingTasks] = useState(true);
 
   const getGreeting = () => {
@@ -81,34 +82,23 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
       setCustomers(customersData);
       setAllPlans(plansData);
 
-      // 加载/同步用户信息
+      // 加载用户信息
       const profile = await getUserProfile();
-      const { data: { user: sbUser } } = await supabase.auth.getUser();
-      
-      if (sbUser) {
-        const updatedName = sbUser.user_metadata?.full_name || profile.name;
-        if (updatedName !== profile.name) {
-          const updatedProfile = { ...profile, name: updatedName };
-          await updateUserProfile(updatedProfile);
-          setUser(updatedProfile);
-        } else {
-          setUser(profile);
-        }
-      } else {
-        setUser(profile);
-      }
+      setUser(profile);
 
       // 检查逾期拜访
       const overdue = await checkOverdueVisits();
       setNotifications(overdue);
 
         try {
-          const [tasks, stages] = await Promise.all([
+          const [tasks, stages, fStats] = await Promise.all([
             getAllTasks(),
-            getSystemSettings('sales_stage')
+            getSystemSettings('sales_stage'),
+            getFunnelStats()
           ]);
           setGlobalTasks(tasks.filter((t: any) => t.status !== 'completed'));
           setSalesStages(stages || []);
+          setFunnelStats(fStats);
         } catch (err) {
           console.error('Failed to load global data:', err);
         } finally {
@@ -144,21 +134,15 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
   }).filter(item => item.value > 0);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 pb-24">
+    <div className="flex flex-col min-h-screen bg-slate-50 pb-24 md:pb-8">
       {/* Header Section */}
-      <div className="flex items-center bg-white p-4 pb-2 justify-between border-b border-slate-100">
+      <div className="sticky top-0 z-20 flex items-center bg-white/80 backdrop-blur-md p-4 pb-2 justify-between border-b border-slate-100 px-4 md:px-8">
         <div className="flex items-center gap-2">
           <div className="bg-blue-50 flex items-center justify-center rounded-full size-10 text-blue-600">
             <User size={24} />
           </div>
           <div>
             <h2 className="text-slate-900 text-lg font-bold">{getGreeting()}，{user.name}</h2>
-            <a 
-              href="/admin.html" 
-              className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5"
-            >
-              进入管理后台 <ChevronRight size={10} />
-            </a>
           </div>
         </div>
         <div className="relative">
@@ -212,8 +196,8 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
       </div>
 
       {/* Search Bar */}
-      <div className="px-4 py-3 bg-white">
-        <div className="relative flex items-center h-11 w-full bg-slate-100 rounded-lg px-4">
+      <div className="px-4 md:px-8 py-3 bg-white sticky top-[61px] z-10 border-b border-slate-100">
+        <div className="relative flex items-center h-11 w-full bg-slate-100 rounded-xl px-4 max-w-2xl mx-auto focus-within:ring-2 focus-within:ring-blue-600 transition-all">
           <Search className="text-slate-400 mr-2" size={18} />
           <input 
             className="bg-transparent border-none outline-none w-full text-sm placeholder:text-slate-400" 
@@ -225,8 +209,13 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-4 gap-2 px-4 py-6">
+      {/* Main Content Area in Grid */}
+      <div className="px-4 md:px-8 py-6 max-w-6xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* Left Column: Actions & Tasks */}
+        <div className="space-y-8">
+          {/* Quick Actions */}
+          <div className="grid grid-cols-4 gap-4">
         <button onClick={() => onNavigate('checkin')} className="flex flex-col items-center gap-2 group">
           <div className="size-12 rounded-xl bg-white flex items-center justify-center text-blue-600 shadow-sm group-active:scale-95 transition-transform border border-slate-100">
             <MapPin size={20} />
@@ -343,37 +332,58 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
             ))
           )}
         </div>
-      </div>
+        </div> {/* End of Global Tasks */}
+      </div> {/* End of Left Column */}
 
-      {/* Charts Section */}
-      <div className="px-4 py-2 space-y-4">
-        {/* Sales Funnel Pie Chart */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-slate-900 text-base font-bold">销售漏斗 (客户等级)</h2>
-            <span className="text-xs text-slate-400 font-medium">本月数据</span>
+      {/* Right Column: Analytics & Charts */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-slate-900 text-lg font-bold">业绩看板</h2>
+        </div>
+        
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm col-span-1 mt-6">
+          <h3 className="text-lg font-bold text-slate-800 mb-6">月度漏斗动态评估</h3>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100 flex flex-col items-center justify-center">
+              <span className="text-emerald-600 font-bold text-2xl">{funnelStats?.newBThisMonth || 0}</span>
+              <span className="text-emerald-800 text-xs mt-1">本月新增B类</span>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-100 flex flex-col items-center justify-center">
+              <span className="text-blue-600 font-bold text-2xl">{funnelStats?.advancedCount || 0}</span>
+              <span className="text-blue-800 text-xs mt-1">进入下一阶段</span>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-4 border border-amber-100 flex flex-col items-center justify-center">
+              <span className="text-amber-600 font-bold text-2xl">{funnelStats?.stagnantCount || 0}</span>
+              <span className="text-amber-800 text-xs mt-1">阶段停滞(&gt;14天)</span>
+            </div>
+            <div className="bg-red-50 rounded-lg p-4 border border-red-100 flex flex-col items-center justify-center">
+              <span className="text-red-600 font-bold text-2xl">{funnelStats?.backwardCount || 0}</span>
+              <span className="text-red-800 text-xs mt-1">退回上一阶段</span>
+            </div>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={levelData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {levelData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
+
+          <h4 className="font-bold text-slate-700 mb-4 border-b border-slate-100 pb-2">本月变动</h4>
+          <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+            {!funnelStats?.recentHistory || funnelStats.recentHistory.length === 0 ? (
+              <p className="text-slate-400 text-center py-4 text-xs">暂无本月变动记录</p>
+            ) : (
+             funnelStats.recentHistory.map((item: any) => (
+                <div key={item.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs">
+                  <div>
+                    <span className="font-bold text-slate-800 mr-2">{item.customerName}</span>
+                    <span className="text-slate-500">
+                      {item.fieldName === 'level' ? '客户等级' : '销售阶段'}变化
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-slate-200 text-slate-600 rounded line-through">{item.oldValue || '空'}</span>
+                    <span className="text-slate-400">→</span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-bold">{item.newValue || '空'}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -405,7 +415,38 @@ export default function Dashboard({ onNavigate, onShowToast, onSelectTask }: Das
             </ResponsiveContainer>
           </div>
         </div>
+        
+        {/* Sales Funnel Pie Chart */}
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-slate-900 text-base font-bold">销售漏斗 (客户等级)</h2>
+            <span className="text-xs text-slate-400 font-medium">本月数据</span>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={levelData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {levelData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
+    </div>
 
       {/* Bottom Navigation Bar */}
       <BottomNav currentPage="dashboard" onNavigate={onNavigate} />

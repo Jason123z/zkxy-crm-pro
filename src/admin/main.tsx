@@ -27,7 +27,8 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    localStorage.removeItem('admin_current_page');
+    localStorage.clear();
+    sessionStorage.clear();
     window.location.href = '/admin.html';
   }
 

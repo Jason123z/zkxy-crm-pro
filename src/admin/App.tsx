@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { Session } from '@supabase/supabase-js';
+import React, { useState, useEffect, useCallback } from 'react';
+import { api, getAuthToken, removeAuthToken } from '../lib/api';
 
 // 我们会在后面实现具体的页面组件
 import AdminLayout from './components/AdminLayout';
@@ -10,65 +9,44 @@ import AllReports from './pages/AllReports';
 import AdminLogin from './components/AdminLogin';
 import CustomerDetail from './pages/CustomerDetail';
 import SystemMaintenance from './pages/SystemMaintenance';
+import CustomerManagement from './pages/CustomerManagement';
 import { AdminPage } from './types';
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  
-  // 优先从环境变量/缓存判断是否曾登录过，但会通过 profile 进行最终验证
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    return localStorage.getItem('admin_session_active') === 'true';
-  });
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        // 进一步校验角色
-        checkAdminRole(session.user.id);
-      } else {
-        setAuthLoading(false);
-      }
-    });
+  const checkAdminRole = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setIsAdminLoggedIn(false);
+      setAuthLoading(false);
+      return;
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        checkAdminRole(session.user.id);
-      } else {
-        setIsAdminLoggedIn(false);
-        localStorage.removeItem('admin_session_active');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const checkAdminRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      
-      if (data?.role === 'admin') {
+      const data = await api.get('/auth/me');
+      if (data && data.role === 'admin') {
         setIsAdminLoggedIn(true);
-        localStorage.setItem('admin_session_active', 'true');
       } else {
         setIsAdminLoggedIn(false);
-        localStorage.removeItem('admin_session_active');
+        removeAuthToken();
       }
     } catch (err) {
       console.error('Role check error:', err);
+      setIsAdminLoggedIn(false);
+      removeAuthToken();
     } finally {
       setAuthLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkAdminRole();
+  }, [checkAdminRole]);
 
   const [currentPage, setCurrentPage] = useState<AdminPage>(() => {
-    const saved = localStorage.getItem('admin_current_page');
+    const saved = sessionStorage.getItem('crm_admin_current_page');
     return (saved as AdminPage) || 'overview';
   });
 
@@ -76,19 +54,17 @@ export default function App() {
   const [customerFilter, setCustomerFilter] = useState<string>('all');
 
   useEffect(() => {
-    localStorage.setItem('admin_current_page', currentPage);
+    sessionStorage.setItem('crm_admin_current_page', currentPage);
   }, [currentPage]);
 
-  const handleAdminLogin = (username: string) => {
-    setIsAdminLoggedIn(true);
-    localStorage.setItem('admin_session_active', 'true');
+  const handleAdminLogin = () => {
+    // 登录组件已经处理了 token 存储，这里只需要重新检查角色
+    checkAdminRole();
   };
 
   const handleLogout = async () => {
     setIsAdminLoggedIn(false);
-    localStorage.removeItem('admin_session_active');
-    // 如果有 Supabase session 也一并清除
-    await supabase.auth.signOut();
+    removeAuthToken();
     // 强制刷新状态
     window.location.reload();
   };
@@ -101,11 +77,9 @@ export default function App() {
           setCurrentPage(page as AdminPage);
         }} />;
       case 'customers':
-        console.log("Rendering AllCustomers page");
         return <AllCustomers 
           initialFilter={customerFilter} 
           onSelectCustomer={(id) => {
-            console.log("Customer selected in App:", id);
             setSelectedCustomerId(id);
             setCurrentPage('customer-detail');
           }} 
@@ -113,13 +87,14 @@ export default function App() {
       case 'reports':
         return <AllReports />;
       case 'customer-detail':
-        console.log("Rendering CustomerDetail page for ID:", selectedCustomerId);
         return <CustomerDetail 
           customerId={selectedCustomerId || ''} 
           onBack={() => setCurrentPage('customers')} 
         />;
       case 'settings':
         return <SystemMaintenance />;
+      case 'management':
+        return <CustomerManagement />;
       default:
         return <OverviewScreen onNavigate={(page) => setCurrentPage(page as AdminPage)} />;
     }
@@ -133,7 +108,7 @@ export default function App() {
     );
   }
 
-  // 优先展示管理员专用登录页 (admin/123456)
+  // 优先展示管理员专用登录页
   if (!isAdminLoggedIn) {
     return <AdminLogin onLogin={handleAdminLogin} />;
   }

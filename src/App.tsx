@@ -10,61 +10,71 @@ import AddCustomer from './AddCustomer';
 import AuthPage from './AuthPage';
 import TaskList from './TaskList';
 import Toast, { ToastType } from './components/Toast';
-import { supabase } from './lib/supabase';
-import { Session } from '@supabase/supabase-js';
+import Sidebar from './components/Sidebar';
+import { getAuthToken } from './lib/api';
+import { getUserProfile, DEFAULT_USER } from './lib/data';
+import { UserProfile } from './types';
 
 // 定义页面类型
 type Page = 'login' | 'dashboard' | 'customers' | 'customer-details' | 'report' | 'profile' | 'checkin' | 'visit-plan' | 'add-customer' | 'all-tasks';
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
 
+  // Initial check for token
   useEffect(() => {
-    // 获取当前会话
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
-
-    // 监听状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    const token = getAuthToken();
+    setIsLoggedIn(!!token);
+    if (token) {
+      getUserProfile().then(setUser);
+    }
+    setAuthLoading(false);
   }, []);
 
-  // 从 localStorage 加载初始状态
+  const handleLoginSuccess = useCallback(() => {
+    setIsLoggedIn(true);
+    setCurrentPage('dashboard');
+    // Re-fetch user on login
+    getUserProfile().then(setUser);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setIsLoggedIn(false);
+    setCurrentPage('dashboard'); // Will redirect to AuthPage if !isLoggedIn
+  }, []);
+
+  // 从 sessionStorage 加载初始状态
   const [currentPage, setCurrentPage] = useState<Page>(() => {
-    const saved = localStorage.getItem('crm_current_page');
+    const saved = sessionStorage.getItem('crm_sales_current_page');
     return (saved as Page) || 'dashboard';
   });
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(() => {
-    return localStorage.getItem('crm_selected_customer_id');
+    return sessionStorage.getItem('crm_sales_selected_customer_id');
   });
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
-    return localStorage.getItem('crm_selected_project_id');
+    return sessionStorage.getItem('crm_sales_selected_project_id');
   });
 
-  // 当页面或选中客户变化时，保存到 localStorage
+  // 当页面或选中客户变化时，保存到 sessionStorage
   useEffect(() => {
-    localStorage.setItem('crm_current_page', currentPage);
+    sessionStorage.setItem('crm_sales_current_page', currentPage);
   }, [currentPage]);
 
   useEffect(() => {
     if (selectedCustomerId) {
-      localStorage.setItem('crm_selected_customer_id', selectedCustomerId);
+      sessionStorage.setItem('crm_sales_selected_customer_id', selectedCustomerId);
     } else {
-      localStorage.removeItem('crm_selected_customer_id');
+      sessionStorage.removeItem('crm_sales_selected_customer_id');
     }
   }, [selectedCustomerId]);
 
   useEffect(() => {
     if (selectedProjectId) {
-      localStorage.setItem('crm_selected_project_id', selectedProjectId);
+      sessionStorage.setItem('crm_sales_selected_project_id', selectedProjectId);
     } else {
-      localStorage.removeItem('crm_selected_project_id');
+      sessionStorage.removeItem('crm_sales_selected_project_id');
     }
   }, [selectedProjectId]);
 
@@ -121,7 +131,7 @@ export default function App() {
       case 'report':
         return <ReportEditor onBack={handleBackToDashboard} onNavigate={navigateTo} onShowToast={showToast} />;
       case 'profile':
-        return <Profile onNavigate={navigateTo} onShowToast={showToast} />;
+        return <Profile onNavigate={navigateTo} onShowToast={showToast} onLogout={handleLogout} />;
       case 'checkin':
         return <CheckIn onBack={handleBackToDashboard} onNavigate={navigateTo} onShowToast={showToast} />;
       case 'visit-plan':
@@ -131,6 +141,7 @@ export default function App() {
           <AddCustomer 
             onBack={handleBackToCustomers} 
             onSuccess={handleAddCustomerSuccess} 
+            onSelectCustomer={handleSelectCustomer}
           />
         );
       case 'all-tasks':
@@ -154,13 +165,28 @@ export default function App() {
     );
   }
 
-  if (!session) {
-    return <AuthPage onLoginSuccess={() => navigateTo('dashboard')} onShowToast={showToast} />;
+  if (!isLoggedIn) {
+    return <AuthPage onLoginSuccess={handleLoginSuccess} onShowToast={showToast} />;
   }
 
   return (
-    <div className="app-container">
-      {renderPage()}
+    <div className="flex min-h-screen bg-slate-50">
+      {/* PC Side Navigation */}
+      <Sidebar 
+        currentPage={currentPage as any} 
+        onNavigate={navigateTo} 
+        userName={user.name} 
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <main className="flex-1 overflow-y-auto scroll-smooth">
+          <div className="max-w-5xl mx-auto w-full">
+            {renderPage()}
+          </div>
+        </main>
+      </div>
+
       <Toast 
         message={toast.message} 
         type={toast.type} 

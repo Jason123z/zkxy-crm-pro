@@ -19,16 +19,16 @@ import {
 import BottomNav from './components/BottomNav';
 import { cn } from './lib/utils';
 import { getUserProfile, updateUserProfile, getAllTasks, DEFAULT_USER } from './lib/data';
+import { removeAuthToken } from './lib/api';
 import { UserProfile, Task } from './types';
 import Modal from './components/Modal';
-import { supabase } from './lib/supabase';
-
 interface ProfileProps {
   onNavigate: (page: string) => void;
   onShowToast: (message: string) => void;
+  onLogout: () => void;
 }
 
-export default function Profile({ onNavigate, onShowToast }: ProfileProps) {
+export default function Profile({ onNavigate, onShowToast, onLogout }: ProfileProps) {
   const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState<UserProfile>(user);
@@ -37,25 +37,9 @@ export default function Profile({ onNavigate, onShowToast }: ProfileProps) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { data: { user: sbUser } } = await supabase.auth.getUser();
         const profile = await getUserProfile();
-        
-        let finalProfile = profile;
-        if (sbUser) {
-          const updatedName = sbUser.user_metadata?.full_name || profile.name;
-          finalProfile = {
-            ...profile,
-            email: sbUser.email || profile.email,
-            name: updatedName,
-          };
-          
-          if (updatedName !== profile.name) {
-            await updateUserProfile(finalProfile);
-          }
-        }
-        
-        setUser(finalProfile);
-        setEditForm(finalProfile);
+        setUser(profile);
+        setEditForm(profile);
       } catch (err) {
         console.error('Failed to fetch user:', err);
       } finally {
@@ -66,12 +50,17 @@ export default function Profile({ onNavigate, onShowToast }: ProfileProps) {
   }, []);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      onShowToast('退出失败');
-    } else {
+    try {
+      removeAuthToken();
+      // Remove other session keys
+      sessionStorage.removeItem('crm_sales_current_page');
+      sessionStorage.removeItem('crm_sales_selected_customer_id');
+      sessionStorage.removeItem('crm_sales_selected_project_id');
+      
       onShowToast('已退出登录');
-      // App.tsx 会监听到状态变化并跳转到登录页
+      onLogout();
+    } catch (error: any) {
+      onShowToast('退出失败');
     }
   };
 
@@ -103,7 +92,7 @@ export default function Profile({ onNavigate, onShowToast }: ProfileProps) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full max-w-md mx-auto bg-white shadow-xl pb-24">
+    <div className="flex flex-col min-h-screen w-full max-w-2xl mx-auto bg-white md:my-12 md:min-h-0 md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden pb-24 md:pb-8">
       {/* Header Section */}
       <header className="relative p-6 bg-gradient-to-br from-blue-50 via-blue-50/50 to-transparent">
         <div className="flex items-center justify-between mb-6">

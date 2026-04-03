@@ -45,8 +45,6 @@ class CustomerBase(CamelModel):
     level: str
     industry: str | None = None
     size: str | None = None
-    contact_person: str | None = None
-    contact_role: str | None = None
     last_follow_up: str | None = None
     status: str | None = None
     address: str | None = None
@@ -54,15 +52,40 @@ class CustomerBase(CamelModel):
     budget_amount: float | None = None
     estimated_purchase_time: str | None = None
     estimated_purchase_amount: float | None = None
+    product: str | None = None
+    source: str | None = None
+    description: str | None = None
+    concerns: str | None = None
+    solution: str | None = None
+    competitors: str | None = None
+    status_updated_at: datetime | None = None
 
 class CustomerCreate(CustomerBase):
     pass
 
-class CustomerUpdate(CustomerBase):
-    pass
+class CustomerUpdate(CamelModel):
+    name: str | None = None
+    level: str | None = None
+    industry: str | None = None
+    size: str | None = None
+    last_follow_up: str | None = None
+    status: str | None = None
+    address: str | None = None
+    budget_level: str | None = None
+    budget_amount: float | None = None
+    estimated_purchase_time: str | None = None
+    estimated_purchase_amount: float | None = None
+    product: str | None = None
+    source: str | None = None
+    description: str | None = None
+    concerns: str | None = None
+    solution: str | None = None
+    competitors: str | None = None
+    status_updated_at: datetime | None = None
 
 class CustomerResponse(CustomerBase):
     id: str
+    user_id: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -116,6 +139,7 @@ class VisitRecordUpdate(CamelModel):
 
 class VisitRecordResponse(VisitRecordBase):
     id: str
+    salesperson_name: str | None = None
     created_at: datetime | None = None
 
 # --- Task Schemas ---

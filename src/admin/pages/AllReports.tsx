@@ -8,10 +8,13 @@ import {
   User,
   Coffee,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  Edit3,
+  CalendarDays
 } from 'lucide-react';
 import { getAllReports, getAllCheckIns, getAllProfiles } from '../lib/api';
 import { DailyReport as Report, CheckIn, UserProfile } from '../../types';
+import Modal from '../../components/Modal';
 
 export default function AllReports() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -20,6 +23,7 @@ export default function AllReports() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'checkin' | 'report'>('checkin');
   const [selectedPersonnel, setSelectedPersonnel] = useState<string>('all');
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -172,7 +176,10 @@ export default function AllReports() {
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">跟进客户数</span>
                             <span className="text-lg font-bold text-slate-700">{report.clientProgress?.length || 0}</span>
                         </div>
-                        <button className="h-10 px-4 bg-slate-100 text-slate-600 rounded-lg text-sm font-bold flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                        <button 
+                          onClick={() => setSelectedReport(report)}
+                          className="h-10 px-4 bg-slate-100 text-slate-600 rounded-lg text-sm font-bold flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm"
+                        >
                             查看报告全文
                             <ChevronRight size={16} />
                         </button>
@@ -200,6 +207,79 @@ export default function AllReports() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Report Detail Modal */}
+      {selectedReport && (
+        <Modal 
+          isOpen={!!selectedReport} 
+          onClose={() => setSelectedReport(null)} 
+          maxWidth="max-w-2xl"
+          title={`${(selectedReport as any).ownerName || '人员'} 的${selectedReport.type === 'daily' ? '日报' : '周报'}`}
+        >
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-2">
+                <Calendar size={18} className="text-blue-600" />
+                <span className="font-bold text-slate-800">{selectedReport.date}</span>
+              </div>
+              <span className={`px-2 py-1 text-xs font-bold rounded ${selectedReport.type === 'daily' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+                {selectedReport.type === 'daily' ? '日报' : '周报'}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Edit3 size={16} className="text-blue-600" />
+                工作总结
+              </h5>
+              <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-wrap">
+                {selectedReport.summary}
+              </div>
+            </div>
+
+            {selectedReport.clientProgress && selectedReport.clientProgress.length > 0 && (
+              <div className="space-y-3">
+                <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-500" />
+                  核心客户进展 ({selectedReport.clientProgress.length})
+                </h5>
+                <div className="space-y-3">
+                  {selectedReport.clientProgress.map((p, idx) => (
+                    <div key={idx} className="bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-slate-800 text-sm">{p.customerName}</span>
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] rounded-full font-bold">{p.status}</span>
+                      </div>
+                      <p className="text-xs text-slate-600 italic leading-relaxed">
+                        {p.progress || '暂无详细进展描述'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <h5 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <CalendarDays size={16} className="text-blue-600" />
+                后续计划
+              </h5>
+              <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-wrap">
+                {selectedReport.nextPlan}
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end">
+            <button 
+              onClick={() => setSelectedReport(null)}
+              className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors"
+            >
+              已阅
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );

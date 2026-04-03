@@ -28,6 +28,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     localStorage.clear();
+    sessionStorage.clear();
     window.location.href = '/';
   }
 

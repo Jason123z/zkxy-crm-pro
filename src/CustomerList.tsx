@@ -74,10 +74,11 @@ export default function CustomerList({ onBack, onSelectCustomer, onNavigate, onS
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 pb-24">
+    <div className="flex flex-col min-h-screen bg-slate-50 pb-24 md:pb-8">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 py-3">
-        <div className="flex items-center justify-between">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 md:px-8 py-3">
+        <div className="max-w-5xl mx-auto w-full">
+          <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="text-blue-600 flex size-10 items-center justify-center rounded-lg hover:bg-slate-100">
               <ArrowLeft size={24} />
@@ -172,11 +173,12 @@ export default function CustomerList({ onBack, onSelectCustomer, onNavigate, onS
             )}
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-6">
-        <div className="space-y-4">
+      <main className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-6xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {isLoading ? (
             <div className="flex justify-center py-12 text-slate-400">加载中...</div>
           ) : filteredCustomers.length > 0 ? filteredCustomers.map((customer) => (
@@ -189,8 +191,8 @@ export default function CustomerList({ onBack, onSelectCustomer, onNavigate, onS
                 <div className="space-y-1">
                   <h3 className="text-lg font-bold">{customer.name}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="rounded bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-600">等级 {customer.level}</span>
-                    <span className="text-sm text-slate-500">{customer.contactPerson} ({customer.contactRole})</span>
+                    <span className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white shadow-sm">等级 {customer.level}</span>
+                    <span className="text-xs text-slate-500 font-medium">{customer.industry || '未分类'} · {customer.size || '规模未知'}</span>
                   </div>
                 </div>
                 <div className="text-right">
@@ -219,7 +221,7 @@ export default function CustomerList({ onBack, onSelectCustomer, onNavigate, onS
       {/* Floating Action Button */}
       <button 
         onClick={() => onNavigate('add-customer')}
-        className="fixed bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/40 active:scale-95 transition-transform"
+        className="fixed bottom-24 right-6 md:bottom-10 md:right-10 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/40 active:scale-95 transition-transform z-30"
       >
         <Plus size={30} />
       </button>

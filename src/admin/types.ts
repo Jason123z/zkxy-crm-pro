@@ -1,1 +1,1 @@
-export type AdminPage = 'overview' | 'customers' | 'reports' | 'customer-detail' | 'settings';
+export type AdminPage = 'overview' | 'customers' | 'reports' | 'customer-detail' | 'settings' | 'management';

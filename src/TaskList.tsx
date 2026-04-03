@@ -54,7 +54,7 @@ export default function TaskList({ onBack, onSelectTask, onNavigate }: TaskListP
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 pb-24">
+    <div className="flex flex-col min-h-screen bg-slate-50 pb-24 md:pb-8 max-w-2xl mx-auto md:my-12 md:min-h-0 md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
       {/* Header */}
       <header className="bg-white px-4 pt-4 pb-2 sticky top-0 z-10 border-b border-slate-100">
         <div className="flex items-center gap-3 mb-4">

@@ -166,7 +166,7 @@ export default function CheckIn({ onBack, onNavigate, onShowToast }: CheckInProp
 
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col bg-slate-50 overflow-x-hidden max-w-md mx-auto shadow-xl">
+    <div className="relative flex h-auto min-h-screen w-full flex-col bg-slate-50 overflow-x-hidden max-w-2xl mx-auto md:my-12 md:min-h-0 md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden pb-24 md:pb-8">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center bg-white p-4 border-b border-slate-200 justify-between">
         <button onClick={onBack} className="text-slate-900 flex size-10 shrink-0 items-center justify-start cursor-pointer">

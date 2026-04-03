@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, User, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { api, setAuthToken } from '../../lib/api';
 
 interface AdminLoginProps {
   onLogin: (username: string) => void;
@@ -18,19 +18,18 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     setError('');
 
     try {
-      // 将 admin 映射为数据库中的正式账号 admin@admin.com
-      const email = username === 'admin' ? 'admin@admin.com' : username;
+      // Direct login with provided username
+      const response = await api.login(username, password);
       
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-
-      // 验证通过，通知父组件
-      onLogin(username);
+      if (response && response.access_token) {
+        setAuthToken(response.access_token);
+        // Using response.username if available, or just notify parent
+        onLogin(username);
+      } else {
+        throw new Error('登录响应异常');
+      }
     } catch (err: any) {
+      console.error('Admin Login Error:', err);
       setError(err.message || '登录失败，请检查账号密码');
     } finally {
       setLoading(false);
